@@ -2,14 +2,16 @@ import { AtpAgent } from '@atproto/api'
 import { readCarStream, MemoryBlockstore, Repo, BlockMap } from '@atproto/repo'
 import { DidResolver } from '@atproto/identity'
 import fs from 'node:fs'
+import path from 'node:path'
 import { Readable } from 'node:stream'
+import { REPOS_JSON, REPOS_DIR, TASKS_DIR } from './const.mjs'
 
 const DL_STREAM_TO_DISK = true
 
 const didres = new DidResolver({})
 
 export async function readDidsFile() {
-  return JSON.parse(await fs.promises.readFile('./.repos.json', 'utf8'))
+  return JSON.parse(await fs.promises.readFile(REPOS_JSON, 'utf8'))
 }
 
 export async function fetchKnownBlueskyDids(service, progressCb) {
@@ -33,7 +35,9 @@ export async function fetchKnownBlueskyDids(service, progressCb) {
 
 export async function isRepoDownloaded(did) {
   try {
-    const st = await fs.promises.stat(`./.repos/${didDir(did)}/${did}.car`)
+    const st = await fs.promises.stat(
+      path.join(REPOS_DIR, didDir(did), `${did}.car`)
+    )
     if (st) {
       return true
     }
@@ -46,7 +50,9 @@ export async function resolveRepoDidDoc(did) {
 }
 
 export async function fetchRepoCarFile(did, pds) {
-  await fs.promises.mkdir(`./.repos/${didDir(did)}`, { recursive: true })
+  await fs.promises.mkdir(path.join(REPOS_DIR, didDir(did)), {
+    recursive: true,
+  })
 
   if (DL_STREAM_TO_DISK) {
     const url = new URL(pds)
@@ -55,7 +61,7 @@ export async function fetchRepoCarFile(did, pds) {
     const res = await fetch(url)
     if (!res.ok) throw new Error(`received ${res.status} ${res.statusText}`)
     Readable.fromWeb(res.body).pipe(
-      fs.createWriteStream(`./.repos/${didDir(did)}/${did}.car`)
+      fs.createWriteStream(path.join(REPOS_DIR, didDir(did), `${did}.car`))
     )
   } else {
     const agent = new AtpAgent({
@@ -64,13 +70,18 @@ export async function fetchRepoCarFile(did, pds) {
     const res = await agent.com.atproto.sync.getRepo({
       did,
     })
-    await fs.promises.writeFile(`./.repos/${didDir(did)}/${did}.car`, res.data)
+    await fs.promises.writeFile(
+      path.join(REPOS_DIR, didDir(did), `${did}.car`),
+      res.data
+    )
   }
 }
 
 export async function fetchRepo(did, progressCb) {
   try {
-    const st = await fs.promises.stat(`./.repos/${didDir(did)}/${did}.car`)
+    const st = await fs.promises.stat(
+      path.join(REPOS_DIR, didDir(did), `${did}.car`)
+    )
     if (st) {
       progressCb?.(`already downloaded`)
       return
@@ -86,7 +97,9 @@ export async function fetchRepo(did, progressCb) {
     return
   }
 
-  await fs.promises.mkdir(`./.repos/${didDir(did)}`, { recursive: true })
+  await fs.promises.mkdir(path.join(REPOS_DIR, didDir(did)), {
+    recursive: true,
+  })
 
   if (DL_STREAM_TO_DISK) {
     try {
@@ -96,7 +109,7 @@ export async function fetchRepo(did, progressCb) {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`received ${res.status} ${res.statusText}`)
       Readable.fromWeb(res.body).pipe(
-        fs.createWriteStream(`./.repos/${didDir(did)}/${did}.car`)
+        fs.createWriteStream(path.join(REPOS_DIR, didDir(did), `${did}.car`))
       )
       progressCb?.(`fetched car file, wrote to disk`)
     } catch (e) {
@@ -116,12 +129,17 @@ export async function fetchRepo(did, progressCb) {
       progressCb?.(`failed to fetch repo: ${e.toString()}`)
       return
     }
-    await fs.promises.writeFile(`./.repos/${didDir(did)}/${did}.car`, res.data)
+    await fs.promises.writeFile(
+      path.join(REPOS_DIR, didDir(did), `${did}.car`),
+      res.data
+    )
   }
 }
 
 export async function readRepo(did) {
-  const rs = fs.createReadStream(`./.repos/${didDir(did)}/${did}.car`)
+  const rs = fs.createReadStream(
+    path.join(REPOS_DIR, didDir(did), `${did}.car`)
+  )
 
   const { roots, blocks } = await readCarStream(rs)
   if (roots.length !== 1) {
@@ -139,7 +157,7 @@ export async function readRepo(did) {
 
 export async function isRepoTaskDone(did, task) {
   try {
-    await fs.promises.stat(`./.tasks/${task}/${didDir(did)}/${did}`)
+    await fs.promises.stat(path.join(TASKS_DIR, task, didDir(did), did))
     return true
   } catch {
     return false
@@ -148,8 +166,10 @@ export async function isRepoTaskDone(did, task) {
 
 export function setRepoTaskDone(did, task) {
   fs.promises
-    .mkdir(`./.tasks/${task}/${didDir(did)}`, { recursive: true })
-    .then(() => fs.promises.open(`./.tasks/${task}/${didDir(did)}/${did}`, 'a'))
+    .mkdir(path.join(TASKS_DIR, task, didDir(did)), { recursive: true })
+    .then(() =>
+      fs.promises.open(path.join(TASKS_DIR, task, didDir(did), did), 'a')
+    )
     .then((fh) => fh.close())
 }
 
