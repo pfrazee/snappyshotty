@@ -31,6 +31,43 @@ export async function fetchKnownBlueskyDids(service, progressCb) {
   return dids
 }
 
+export async function isRepoDownloaded(did) {
+  try {
+    const st = await fs.promises.stat(`./.repos/${didDir(did)}/${did}.car`)
+    if (st) {
+      return true
+    }
+  } catch {} /* doesnt exist, continue */
+  return false
+}
+
+export async function resolveRepoDidDoc(did) {
+  return await didres.resolveAtprotoData(did)
+}
+
+export async function fetchRepoCarFile(did, pds) {
+  await fs.promises.mkdir(`./.repos/${didDir(did)}`, { recursive: true })
+
+  if (DL_STREAM_TO_DISK) {
+    const url = new URL(pds)
+    url.pathname = '/xrpc/com.atproto.sync.getRepo'
+    url.searchParams.set('did', did)
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`received ${res.status} ${res.statusText}`)
+    Readable.fromWeb(res.body).pipe(
+      fs.createWriteStream(`./.repos/${didDir(did)}/${did}.car`)
+    )
+  } else {
+    const agent = new AtpAgent({
+      service: pds,
+    })
+    const res = await agent.com.atproto.sync.getRepo({
+      did,
+    })
+    await fs.promises.writeFile(`./.repos/${didDir(did)}/${did}.car`, res.data)
+  }
+}
+
 export async function fetchRepo(did, progressCb) {
   try {
     const st = await fs.promises.stat(`./.repos/${didDir(did)}/${did}.car`)

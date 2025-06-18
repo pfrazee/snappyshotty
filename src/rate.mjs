@@ -24,4 +24,9 @@ export class RateMeter {
     const est = (this.remaining / hpm) | 0
     return { ms, hpm, est }
   }
+
+  statsStr() {
+    const { est, hpm } = this.stats()
+    return `${this.remaining} repos left | ${est}min remaining | ${hpm}pm`
+  }
 }

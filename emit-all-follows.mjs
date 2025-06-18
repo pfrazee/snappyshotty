@@ -35,17 +35,7 @@ runAsCluster(
   },
   () => {
     rm.hit()
-    const { ms, hpm, est } = rm.stats()
-    console.log(
-      rm.remaining,
-      'repos left |',
-      est,
-      'minutes remaining |',
-      hpm,
-      'RPM |',
-      ms,
-      'avg ms'
-    )
+    console.log(rm.statsStr())
     if (rm.remaining === 0) {
       console.log('Job done!')
       process.exit()
