@@ -1,0 +1,16 @@
+{
+  "name": "snappyshotty",
+  "version": "1.0.0",
+  "description": "Program to capture the firehose into local disk, using backfill and then active listening",
+  "main": "index.mjs",
+  "author": "Paul Frazee <pfrazee@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "@atproto/api": "^0.15.15",
+    "@atproto/identity": "^0.4.8",
+    "@atproto/repo": "^0.8.2",
+    "better-sqlite3": "^11.10.0",
+    "p-map": "^7.0.3"
+  }
+}
