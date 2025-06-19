@@ -33,7 +33,7 @@ async function handleDid({ did }) {
 
   const subscheduler = getScheduler(
     pdsUrl.hostname,
-    { concurrency: 25 }, // 25 per PDS to avoid saturating the PDS and/or getting rate limited
+    { concurrency: 25, rateLimit: 25 }, // 25/s per PDS to avoid saturating the PDS and/or getting rate limited
     handleRepo
   )
   subscheduler.enqueue({ did, pds })
@@ -51,7 +51,11 @@ async function handleRepo({ did, pds }) {
 }
 
 // kickoff
-const scheduler = getScheduler('main', { concurrency: 50 }, handleDid)
+const scheduler = getScheduler(
+  'main',
+  { concurrency: 25, rateLimit: 25 },
+  handleDid
+)
 scheduler.enqueue(dids)
 
 // logging

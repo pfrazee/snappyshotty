@@ -2,14 +2,18 @@ const DONE = Symbol('done')
 
 export class Scheduler {
   concurrency = 1
+  rateLimit = 25
   handler = () => {}
   queue = []
   queueIndex = 0
   tasks = []
+  rlCounter = 0
 
   constructor(opts, handler) {
-    this.concurrency = opts.concurrency
+    this.concurrency = opts.concurrency || 1
+    this.rateLimit = opts.rateLimit || 25
     this.handler = handler
+    setInterval(this.#tickRateLimiter.bind(this), 1e3)
   }
 
   enqueue(param) {
@@ -27,12 +31,16 @@ export class Scheduler {
 
   #flush() {
     for (let i = 0; i < this.concurrency; i++) {
+      if (this.rlCounter >= this.rateLimit) {
+        return
+      }
       if (!this.tasks[i]) {
         const nextParam = this.#nextParam()
         if (nextParam === DONE) {
           return
         }
         this.tasks[i] = this.#runTask(i, nextParam)
+        this.rlCounter++
       }
     }
   }
@@ -51,5 +59,10 @@ export class Scheduler {
         this.tasks[i] = undefined
         this.#flush()
       })
+  }
+
+  #tickRateLimiter() {
+    this.rlCounter = 0
+    this.#flush()
   }
 }
