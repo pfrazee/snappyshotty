@@ -1,7 +1,7 @@
 import {
   readDidsFile,
   isRepoDownloaded,
-  resolveRepoDidDoc,
+  fetchDidDoc,
   fetchRepoCarFile,
 } from './src/repos.mjs'
 import { Scheduler } from './src/scheduler.mjs'
@@ -31,7 +31,7 @@ async function scheduleRepo(repo) {
 
 async function resolveDid({ did }) {
   try {
-    const { pds } = await resolveRepoDidDoc(did)
+    const { pds } = await fetchDidDoc(did)
     console.error(did, 'resolved PDS to', pds)
     const pdsUrl = new URL(pds)
 

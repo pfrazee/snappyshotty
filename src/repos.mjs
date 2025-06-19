@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { REPOS_JSON, REPOS_DIR, TASKS_DIR } from './const.mjs'
+import { fileExists, touch } from './util.mjs'
 
 const DL_STREAM_TO_DISK = true
 
@@ -33,20 +34,38 @@ export async function fetchKnownBlueskyDids(service, progressCb) {
   return dids
 }
 
+export async function isDidDocDownloaded(did) {
+  return fileExists(path.join(REPOS_DIR, didDir(did), `${did}.json`))
+}
+
 export async function isRepoDownloaded(did) {
-  try {
-    const st = await fs.promises.stat(
-      path.join(REPOS_DIR, didDir(did), `${did}.car`)
-    )
-    if (st) {
-      return true
-    }
-  } catch {} /* doesnt exist, continue */
+  if (await fileExists(path.join(REPOS_DIR, didDir(did), `${did}.car`))) {
+    return true
+  }
+  if (await fileExists(path.join(REPOS_DIR, didDir(did), `${did}.dne`))) {
+    return true
+  }
   return false
 }
 
-export async function resolveRepoDidDoc(did) {
-  return await didres.resolveAtprotoData(did)
+export async function fetchDidDoc(did) {
+  try {
+    const doc = JSON.parse(
+      await fs.promises.readFile(
+        path.join(REPOS_DIR, didDir(did), `${did}.json`),
+        'utf8'
+      )
+    )
+    console.error(did, 'read did doc from cache')
+    return doc
+  } catch {}
+  const doc = await didres.resolveAtprotoData(did)
+  await fs.promises.writeFile(
+    path.join(REPOS_DIR, didDir(did), `${did}.json`),
+    JSON.stringify(doc),
+    'utf8'
+  )
+  return doc
 }
 
 export async function fetchRepoCarFile(did, pds) {
@@ -59,7 +78,12 @@ export async function fetchRepoCarFile(did, pds) {
     url.pathname = '/xrpc/com.atproto.sync.getRepo'
     url.searchParams.set('did', did)
     const res = await fetch(url)
-    if (!res.ok) throw new Error(`received ${res.status} ${res.statusText}`)
+    if (!res.ok) {
+      if (res.status == 400) {
+        /* dont await */ touch(path.join(REPOS_DIR, didDir(did), `${did}.dne`))
+      }
+      throw new Error(`received ${res.status} ${res.statusText}`)
+    }
     Readable.fromWeb(res.body).pipe(
       fs.createWriteStream(path.join(REPOS_DIR, didDir(did), `${did}.car`))
     )
@@ -70,65 +94,6 @@ export async function fetchRepoCarFile(did, pds) {
     const res = await agent.com.atproto.sync.getRepo({
       did,
     })
-    await fs.promises.writeFile(
-      path.join(REPOS_DIR, didDir(did), `${did}.car`),
-      res.data
-    )
-  }
-}
-
-export async function fetchRepo(did, progressCb) {
-  try {
-    const st = await fs.promises.stat(
-      path.join(REPOS_DIR, didDir(did), `${did}.car`)
-    )
-    if (st) {
-      progressCb?.(`already downloaded`)
-      return
-    }
-  } catch {} /* doesnt exist, continue */
-
-  let doc
-  try {
-    doc = await didres.resolveAtprotoData(did)
-    progressCb?.(`resolved did doc, pds is ${doc.pds}`)
-  } catch (e) {
-    progressCb?.(`failed to resolve did doc: ${e.toString()}`)
-    return
-  }
-
-  await fs.promises.mkdir(path.join(REPOS_DIR, didDir(did)), {
-    recursive: true,
-  })
-
-  if (DL_STREAM_TO_DISK) {
-    try {
-      const url = new URL(doc.pds)
-      url.pathname = '/xrpc/com.atproto.sync.getRepo'
-      url.searchParams.set('did', did)
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`received ${res.status} ${res.statusText}`)
-      Readable.fromWeb(res.body).pipe(
-        fs.createWriteStream(path.join(REPOS_DIR, didDir(did), `${did}.car`))
-      )
-      progressCb?.(`fetched car file, wrote to disk`)
-    } catch (e) {
-      progressCb?.(`failed to fetch repo: ${e.toString()}`)
-    }
-  } else {
-    const agent = new AtpAgent({
-      service: doc.pds,
-    })
-    let res
-    try {
-      res = await agent.com.atproto.sync.getRepo({
-        did,
-      })
-      progressCb?.(`fetched car file, writing to disk`)
-    } catch (e) {
-      progressCb?.(`failed to fetch repo: ${e.toString()}`)
-      return
-    }
     await fs.promises.writeFile(
       path.join(REPOS_DIR, didDir(did), `${did}.car`),
       res.data
@@ -165,12 +130,9 @@ export async function isRepoTaskDone(did, task) {
 }
 
 export function setRepoTaskDone(did, task) {
-  fs.promises
+  /* dont await */ fs.promises
     .mkdir(path.join(TASKS_DIR, task, didDir(did)), { recursive: true })
-    .then(() =>
-      fs.promises.open(path.join(TASKS_DIR, task, didDir(did), did), 'a')
-    )
-    .then((fh) => fh.close())
+    .then(() => touch(path.join(TASKS_DIR, task, didDir(did), did), 'a'))
 }
 
 function didDir(did) {
