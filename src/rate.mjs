@@ -1,37 +1,39 @@
 export class RateMeter {
-  lastHit = undefined
-  hits = []
+  ticks = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  ti = 0
+  counter = 0
   remaining = 0
 
   constructor(total) {
     this.remaining = total
+    setInterval(this.#tick.bind(this), 1e3).unref()
   }
 
   hit() {
     this.remaining--
-    if (this.lastHit) {
-      this.hits.push(Date.now() - this.lastHit)
-      if (this.hits.length > 200) {
-        this.hits = this.hits.slice(50)
-      }
-    }
-    this.lastHit = Date.now()
+    this.counter++
+  }
+
+  #tick() {
+    this.ticks[this.ti++] = this.counter
+    if (this.ti >= 10) this.ti = 0
+    this.counter = 0
   }
 
   stats() {
-    const ms = (this.hits.reduce((acc, v) => acc + v, 0) / this.hits.length) | 0
-    const hpm = (1 / ms) * 60e3
-    const est = (this.remaining / hpm) | 0
-    return { ms, hpm: hpm | 0, est }
+    const hps =
+      (this.ticks.reduce((acc, v) => acc + v, 0) / this.ticks.length) | 0
+    const est = (this.remaining / hps) | 0
+    return { hps, est }
   }
 
   statsStr() {
-    const { ms, est, hpm } = this.stats()
-    if (est > 0) {
-      return `${this.remaining} repos left | ${est}min remaining | ${hpm}pm`
+    const { est, hps } = this.stats()
+    if (est > 60) {
+      return `${this.remaining} repos left | ${
+        (est / 60) | 0
+      }min remaining | ${hps}ps`
     }
-    const hps = (1 / ms) * 1e3
-    const estSec = (this.remaining / hps) | 0
-    return `${this.remaining} repos left | ${estSec}s remaining | ${hpm}pm`
+    return `${this.remaining} repos left | ${est}s remaining | ${hps}ps`
   }
 }

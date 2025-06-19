@@ -64,7 +64,7 @@ const mainSched = getScheduler(
 )
 const didResolveSched = getScheduler(
   'did-resolve',
-  { concurrency: 25, rateLimit: 25 },
+  { concurrency: 25, rateLimit: 100 },
   resolveDid
 )
 mainSched.enqueue(dids)
@@ -74,6 +74,7 @@ function logStats() {
   const stats = Array.from(schedulers.entries()).map(([id, sched]) => [
     id,
     sched.getStats().active,
+    sched.queueIndex,
   ])
   console.table(stats)
   console.log(rm.statsStr())
