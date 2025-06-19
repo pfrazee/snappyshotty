@@ -23,20 +23,24 @@ console.log(dids.length, 'accounts to fetch')
 
 // main scheduler - resolves repo doc and subschedules car fetch
 async function handleDid({ did }) {
-  if (await isRepoDownloaded(did)) {
-    console.error(did, 'downloaded, skipping')
-    return
-  }
-  const { pds } = await resolveRepoDidDoc(did)
-  console.error(did, 'resolved PDS to', pds)
-  const pdsUrl = new URL(pds)
+  try {
+    if (await isRepoDownloaded(did)) {
+      console.error(did, 'downloaded, skipping')
+      return
+    }
+    const { pds } = await resolveRepoDidDoc(did)
+    console.error(did, 'resolved PDS to', pds)
+    const pdsUrl = new URL(pds)
 
-  const subscheduler = getScheduler(
-    pdsUrl.hostname,
-    { concurrency: 25, rateLimit: 25 }, // 25/s per PDS to avoid saturating the PDS and/or getting rate limited
-    handleRepo
-  )
-  subscheduler.enqueue({ did, pds })
+    const subscheduler = getScheduler(
+      pdsUrl.hostname,
+      { concurrency: 25, rateLimit: 25 }, // 25/s per PDS to avoid saturating the PDS and/or getting rate limited
+      handleRepo
+    )
+    subscheduler.enqueue({ did, pds })
+  } catch (e) {
+    console.error(did, 'did resolve failed', e)
+  }
 }
 
 // repo fetch
