@@ -24,6 +24,7 @@ console.log(dids.length, 'accounts to fetch')
 async function scheduleRepo(repo) {
   if (await isRepoDownloaded(repo.did)) {
     console.error(repo.did, 'downloaded, skipping')
+    rm.hit()
     return
   }
   didResolveSched.enqueue(repo)
