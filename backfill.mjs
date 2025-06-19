@@ -21,30 +21,32 @@ const { dids } = await readDidsFile()
 const rm = new RateMeter(dids.length)
 console.log(dids.length, 'accounts to fetch')
 
-// main scheduler - resolves repo doc and subschedules car fetch
-async function handleDid({ did }) {
+async function scheduleRepo(repo) {
+  if (await isRepoDownloaded(repo.did)) {
+    console.error(repo.did, 'downloaded, skipping')
+    return
+  }
+  didResolveSched.enqueue(repo)
+}
+
+async function resolveDid({ did }) {
   try {
-    if (await isRepoDownloaded(did)) {
-      console.error(did, 'downloaded, skipping')
-      return
-    }
     const { pds } = await resolveRepoDidDoc(did)
     console.error(did, 'resolved PDS to', pds)
     const pdsUrl = new URL(pds)
 
-    const subscheduler = getScheduler(
+    const repoSched = getScheduler(
       pdsUrl.hostname,
       { concurrency: 25, rateLimit: 25 }, // 25/s per PDS to avoid saturating the PDS and/or getting rate limited
-      handleRepo
+      fetchRepo
     )
-    subscheduler.enqueue({ did, pds })
+    repoSched.enqueue({ did, pds })
   } catch (e) {
     console.error(did, 'did resolve failed', e)
   }
 }
 
-// repo fetch
-async function handleRepo({ did, pds }) {
+async function fetchRepo({ did, pds }) {
   try {
     await fetchRepoCarFile(did, pds)
     console.error(did, 'car file fetched')
@@ -55,12 +57,17 @@ async function handleRepo({ did, pds }) {
 }
 
 // kickoff
-const scheduler = getScheduler(
+const mainSched = getScheduler(
   'main',
-  { concurrency: 25, rateLimit: 25 },
-  handleDid
+  { concurrency: 1000, rateLimit: 0 },
+  scheduleRepo
 )
-scheduler.enqueue(dids)
+const didResolveSched = getScheduler(
+  'did-resolve',
+  { concurrency: 25, rateLimit: 25 },
+  resolveDid
+)
+mainSched.enqueue(dids)
 
 // logging
 function logStats() {
