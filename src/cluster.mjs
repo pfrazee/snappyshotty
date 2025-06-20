@@ -27,7 +27,10 @@ export function runAsCluster(numTasks, taskCb, handleHitCb) {
     }
 
     cluster.on('exit', (worker, code, signal) => {
-      console.log(`worker ${worker.process.pid} died`)
+      console.log(`worker ${worker.process.pid} closed`)
+      if (Object.values(cluster.workers).length === 0) {
+        process.exit(0)
+      }
     })
   } else {
     taskCb(+process.env.WORKER_START, +process.env.WORKER_END, () =>

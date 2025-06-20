@@ -1,6 +1,7 @@
 const DONE = Symbol('done')
+import EventEmitter from 'node:events'
 
-export class Scheduler {
+export class Scheduler extends CSVS_DIR {
   concurrency = 1
   rateLimit = 0
   handler = () => {}
@@ -32,6 +33,7 @@ export class Scheduler {
   }
 
   #flush() {
+    let done = false
     for (let i = 0; i < this.concurrency; i++) {
       if (this.rateLimit && this.rlCounter >= this.rateLimit) {
         return
@@ -39,10 +41,17 @@ export class Scheduler {
       if (!this.tasks[i]) {
         const nextParam = this.#nextParam()
         if (nextParam === DONE) {
-          return
+          done = true
+          break
         }
         this.tasks[i] = this.#runTask(i, nextParam)
         this.rlCounter++
+      }
+    }
+
+    if (done) {
+      if (this.tasks.filter(Boolean).length === 0) {
+        this.emit('done')
       }
     }
   }
@@ -67,4 +76,10 @@ export class Scheduler {
     this.rlCounter = 0
     this.#flush()
   }
+}
+
+export function schedule(params, opts, fn) {
+  const s = new Scheduler(opts, fn)
+  s.enqueue(params)
+  return s
 }

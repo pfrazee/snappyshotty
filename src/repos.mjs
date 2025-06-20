@@ -5,7 +5,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { REPOS_JSON, REPOS_DIR, TASKS_DIR } from './const.mjs'
-import { fileExists, touch } from './util.mjs'
+import {
+  fileExists,
+  touch,
+  getCarPath,
+  getDnePath,
+  getDiddocPath,
+} from './util.mjs'
 
 const DL_STREAM_TO_DISK = true
 
@@ -35,14 +41,14 @@ export async function fetchKnownBlueskyDids(service, progressCb) {
 }
 
 export async function isDidDocDownloaded(did) {
-  return fileExists(path.join(REPOS_DIR, didDir(did), `${did}.json`))
+  return fileExists(getDiddocPath(did))
 }
 
 export async function isRepoDownloaded(did) {
-  if (await fileExists(path.join(REPOS_DIR, didDir(did), `${did}.car`))) {
+  if (await fileExists(getCarPath(did))) {
     return true
   }
-  if (await fileExists(path.join(REPOS_DIR, didDir(did), `${did}.dne`))) {
+  if (await fileExists(getDnePath(did))) {
     return true
   }
   return false
@@ -51,20 +57,13 @@ export async function isRepoDownloaded(did) {
 export async function fetchDidDoc(did) {
   try {
     const doc = JSON.parse(
-      await fs.promises.readFile(
-        path.join(REPOS_DIR, didDir(did), `${did}.json`),
-        'utf8'
-      )
+      await fs.promises.readFile(getDiddocPath(did), 'utf8')
     )
     console.error(did, 'read did doc from cache')
     return doc
   } catch {}
   const doc = await didres.resolveAtprotoData(did)
-  await fs.promises.writeFile(
-    path.join(REPOS_DIR, didDir(did), `${did}.json`),
-    JSON.stringify(doc),
-    'utf8'
-  )
+  await fs.promises.writeFile(getDiddocPath(did), JSON.stringify(doc), 'utf8')
   return doc
 }
 
@@ -80,13 +79,11 @@ export async function fetchRepoCarFile(did, pds) {
     const res = await fetch(url)
     if (!res.ok) {
       if (res.status == 400) {
-        /* dont await */ touch(path.join(REPOS_DIR, didDir(did), `${did}.dne`))
+        /* dont await */ touch(getDnePath(did))
       }
       throw new Error(`received ${res.status} ${res.statusText}`)
     }
-    Readable.fromWeb(res.body).pipe(
-      fs.createWriteStream(path.join(REPOS_DIR, didDir(did), `${did}.car`))
-    )
+    Readable.fromWeb(res.body).pipe(fs.createWriteStream(getCarPath(did)))
   } else {
     const agent = new AtpAgent({
       service: pds,
@@ -94,17 +91,12 @@ export async function fetchRepoCarFile(did, pds) {
     const res = await agent.com.atproto.sync.getRepo({
       did,
     })
-    await fs.promises.writeFile(
-      path.join(REPOS_DIR, didDir(did), `${did}.car`),
-      res.data
-    )
+    await fs.promises.writeFile(getCarPath(did), res.data)
   }
 }
 
 export async function readRepo(did) {
-  const rs = fs.createReadStream(
-    path.join(REPOS_DIR, didDir(did), `${did}.car`)
-  )
+  const rs = fs.createReadStream(getCarPath(did))
 
   const { roots, blocks } = await readCarStream(rs)
   if (roots.length !== 1) {

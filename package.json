@@ -11,6 +11,7 @@
     "@atproto/identity": "^0.4.8",
     "@atproto/repo": "^0.8.2",
     "better-sqlite3": "^11.10.0",
+    "csv-stringify": "^6.5.2",
     "p-map": "^7.0.3"
   }
 }
