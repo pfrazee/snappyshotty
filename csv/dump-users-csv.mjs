@@ -5,6 +5,7 @@ import { RateMeter } from '../lib/rate.mjs'
 import { csvWriter } from '../lib/csv.mjs'
 import { CSVS_DIR } from '../lib/const.mjs'
 import path from 'node:path'
+import fs from 'node:fs'
 
 const { dids } = await readDidsFile()
 const rm = new RateMeter(dids.length)
@@ -21,6 +22,7 @@ schedule(dids, { concurrency: 1000 }, async ({ did }) => {
     )
     csv.write({ did, handle: doc.handle || 'invalid.handle' })
   } catch {}
+  rm.hit()
 }).on('done', () => csv.end())
 csv.on('finish', () => {
   console.log('users.csv written')

@@ -1,4 +1,5 @@
 import process from 'node:process'
+import { join } from 'node:path'
 import { csvDumper } from '../lib/csv-dumper.mjs'
 import { readDidsFile } from '../lib/repos.mjs'
 import { csvWriter } from '../lib/csv.mjs'
@@ -19,7 +20,7 @@ csvDumper(async (start, end, hit) => {
   )
   dids = dids.slice(start, end)
 
-  const csv = csvWriter(path.join(CSVS_DIR, `follows-${process.pid}.csv`), {
+  const csv = csvWriter(join(CSVS_DIR, `follows-${process.pid}.csv`), {
     header: true,
     columns: [
       { key: 'did', header: ':START_ID' },
