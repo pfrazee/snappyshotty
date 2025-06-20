@@ -3,9 +3,9 @@ import {
   isRepoDownloaded,
   fetchDidDoc,
   fetchRepoCarFile,
-} from './src/repos.mjs'
-import { Scheduler } from './src/scheduler.mjs'
-import { RateMeter } from './src/rate.mjs'
+} from '../lib/repos.mjs'
+import { Scheduler } from '../lib/scheduler.mjs'
+import { RateMeter } from '../lib/rate.mjs'
 
 // scheduler management
 const schedulers = new Map()

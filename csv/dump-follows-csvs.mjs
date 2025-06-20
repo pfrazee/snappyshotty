@@ -1,5 +1,5 @@
-import { readDidsFile } from '../src/repos.mjs'
-import { RateMeter } from '../src/rate.mjs'
+import { readDidsFile } from '../lib/repos.mjs'
+import { RateMeter } from '../lib/rate.mjs'
 import { worker } from './dump-follows-csvs/worker.mjs'
 
 const { dids } = await readDidsFile()

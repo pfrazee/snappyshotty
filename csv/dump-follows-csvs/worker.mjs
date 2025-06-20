@@ -1,8 +1,8 @@
 import process from 'node:process'
-import { readDidsFile } from '../../src/repos.mjs'
-import { csvWriter } from '../../src/csv.mjs'
-import { CSVS_DIR } from '../../src/const.mjs'
-import { schedule } from '../../src/scheduler.mjs'
+import { readDidsFile } from '../../lib/repos.mjs'
+import { csvWriter } from '../../lib/csv.mjs'
+import { CSVS_DIR } from '../../lib/const.mjs'
+import { schedule } from '../../lib/scheduler.mjs'
 
 export async function worker(start, end, hit) {
   let { dids } = await readDidsFile()

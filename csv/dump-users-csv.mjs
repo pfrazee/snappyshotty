@@ -1,9 +1,9 @@
-import { readDidsFile } from '../src/repos.mjs'
-import { getDiddocPath } from '../src/util.mjs'
-import { schedule } from '../src/scheduler.mjs'
-import { RateMeter } from '../src/rate.mjs'
-import { csvWriter } from '../src/csv.mjs'
-import { CSVS_DIR } from '../src/const.mjs'
+import { readDidsFile } from '../lib/repos.mjs'
+import { getDiddocPath } from '../lib/util.mjs'
+import { schedule } from '../lib/scheduler.mjs'
+import { RateMeter } from '../lib/rate.mjs'
+import { csvWriter } from '../lib/csv.mjs'
+import { CSVS_DIR } from '../lib/const.mjs'
 import path from 'node:path'
 
 const { dids } = await readDidsFile()

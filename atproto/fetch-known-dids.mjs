@@ -1,5 +1,5 @@
-import { RELAY1_WEST, REPOS_JSON } from './src/const.mjs'
-import { fetchKnownBlueskyDids } from './src/repos.mjs'
+import { RELAY1_WEST, REPOS_JSON } from '../lib/const.mjs'
+import { fetchKnownBlueskyDids } from '../lib/repos.mjs'
 import fs from 'node:fs'
 
 console.log('Fetching list of all known DIDs from', RELAY1_WEST)
