@@ -1,17 +1,46 @@
+import process from 'node:process'
+import { csvDumper } from '../lib/csv-dumper.mjs'
 import { readDidsFile } from '../lib/repos.mjs'
-import { RateMeter } from '../lib/rate.mjs'
-import { worker } from './dump-follows-csvs/worker.mjs'
+import { csvWriter } from '../lib/csv.mjs'
+import { CSVS_DIR } from '../lib/const.mjs'
+import { schedule } from '../lib/scheduler.mjs'
 
-const { dids } = await readDidsFile()
-const rm = new RateMeter(dids.length)
-console.log(dids.length, 'accounts to process')
+csvDumper(async (start, end, hit) => {
+  let { dids } = await readDidsFile()
+  console.log(
+    'Worker',
+    process.pid,
+    'handling',
+    start,
+    'through',
+    end,
+    'of',
+    dids.length
+  )
+  dids = dids.slice(start, end)
 
-runAsCluster(dids.length, worker, () => {
-  rm.hit()
-  if (rm.remaining === 0) {
-    console.log('Job done!')
-  }
+  const csv = csvWriter(path.join(CSVS_DIR, `follows-${process.pid}.csv`), {
+    header: true,
+    columns: [
+      { key: 'did', header: ':START_ID' },
+      { key: 'subject', header: ':END_ID' },
+    ],
+  })
+  schedule(dids, { concurrency: 100 }, async ({ did }) => {
+    try {
+      const repo = await readRepo(did)
+      const follows = (await repo.getContents())['app.bsky.graph.follow']
+      for (const follow of Object.values(follows)) {
+        csv.write({ did, subject: follow.subject })
+      }
+      console.error(did, 'done,', follows.length, 'follows')
+      hit()
+    } catch (e) {
+      console.error(did, 'failed:', e)
+    }
+  }).on('done', () => csv.end())
+  csv.on('finish', () => {
+    console.log(`follows-${process.pid}.csv written`)
+    process.exit(0)
+  })
 })
-
-// logging
-setInterval(() => console.log(rm.statsStr()), 1e3).unref()
