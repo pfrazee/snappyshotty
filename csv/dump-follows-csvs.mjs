@@ -1,10 +1,9 @@
 import process from 'node:process'
 import { join } from 'node:path'
 import { csvDumper } from '../lib/csv-dumper.mjs'
-import { readDidsFile } from '../lib/repos.mjs'
+import { readDidsFile, readRepo } from '../lib/repos.mjs'
 import { csvWriter } from '../lib/csv.mjs'
 import { CSVS_DIR } from '../lib/const.mjs'
-import { schedule } from '../lib/scheduler.mjs'
 
 csvDumper(async (start, end, hit) => {
   let { dids } = await readDidsFile()
@@ -27,21 +26,31 @@ csvDumper(async (start, end, hit) => {
       { key: 'subject', header: ':END_ID' },
     ],
   })
-  schedule(dids, { concurrency: 100 }, async ({ did }) => {
+  for (let { did } of dids) {
     try {
-      const repo = await readRepo(did)
-      const follows = (await repo.getContents())['app.bsky.graph.follow']
+      let repo
+      try {
+        repo = await readRepo(did)
+      } catch (e) {
+        console.error(did, 'skipping, not available')
+        hit()
+        continue
+      }
+      const follows = Object.values(
+        (await repo.getContents())['app.bsky.graph.follow']
+      )
       for (const follow of Object.values(follows)) {
         csv.write({ did, subject: follow.subject })
       }
       console.error(did, 'done,', follows.length, 'follows')
-      hit()
     } catch (e) {
       console.error(did, 'failed:', e)
     }
-  }).on('done', () => csv.end())
+    hit()
+  }
   csv.on('finish', () => {
     console.log(`follows-${process.pid}.csv written`)
     process.exit(0)
   })
+  csv.end()
 })
