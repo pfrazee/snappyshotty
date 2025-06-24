@@ -30,7 +30,7 @@ csvDumper(async (start, end, hit) => {
       let repo
       try {
         const sz = await getRepoSize(did)
-        console.log(pid, did, prettyBytes(sz))
+        console.error(pid, did, prettyBytes(sz))
         if (sz > 3e8) {
           // 300mb
           console.log(pid, 'skipping', did, 'due to carfile size')
