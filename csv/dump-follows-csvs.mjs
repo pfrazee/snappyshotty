@@ -1,25 +1,24 @@
 import process from 'node:process'
 import { join } from 'node:path'
+import prettyBytes from 'pretty-bytes'
 import { csvDumper } from '../lib/csv-dumper.mjs'
-import { readDidsFile, readRepo } from '../lib/repos.mjs'
+import {
+  readDidsFile,
+  readRepo,
+  getRepoSize,
+  getCollectionContents,
+} from '../lib/repos.mjs'
 import { csvWriter } from '../lib/csv.mjs'
 import { CSVS_DIR } from '../lib/const.mjs'
 
+const pid = `Worker-${process.pid}`
+
 csvDumper(async (start, end, hit) => {
   let { dids } = await readDidsFile()
-  console.log(
-    'Worker',
-    process.pid,
-    'handling',
-    start,
-    'through',
-    end,
-    'of',
-    dids.length
-  )
+  console.log(pid, 'handling', start, 'through', end, 'of', dids.length)
   dids = dids.slice(start, end)
 
-  const csv = csvWriter(join(CSVS_DIR, `follows-${process.pid}.csv`), {
+  const csv = csvWriter(join(CSVS_DIR, `follows-${start}-through-${end}.csv`), {
     header: true,
     columns: [
       { key: 'did', header: ':START_ID' },
@@ -30,26 +29,33 @@ csvDumper(async (start, end, hit) => {
     try {
       let repo
       try {
+        const sz = await getRepoSize(did)
+        console.log(pid, did, prettyBytes(sz))
+        if (sz > 3e8) {
+          // 300mb
+          console.log(pid, 'skipping', did, 'due to carfile size')
+          continue
+        }
         repo = await readRepo(did)
       } catch (e) {
-        console.error(did, 'skipping, not available')
+        console.error(pid, did, 'skipping, not available')
         hit()
         continue
       }
       const follows = Object.values(
-        (await repo.getContents())['app.bsky.graph.follow']
+        await getCollectionContents(repo, 'app.bsky.graph.follow')
       )
       for (const follow of Object.values(follows)) {
         csv.write({ did, subject: follow.subject })
       }
-      console.error(did, 'done,', follows.length, 'follows')
+      console.error(pid, did, 'done,', follows.length, 'follows')
     } catch (e) {
-      console.error(did, 'failed:', e)
+      console.error(pid, did, 'failed:', e)
     }
     hit()
   }
   csv.on('finish', () => {
-    console.log(`follows-${process.pid}.csv written`)
+    console.log(pid, `follows-${start}-through-${end}.csv written`)
     process.exit(0)
   })
   csv.end()
